@@ -1782,7 +1782,37 @@
         function deleteStudent(n, idx) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; let gd; try{gd=JSON.parse(gds)}catch(e){alert("خطأ قراءة بيانات المجموعة.");return} if(!gd.students||idx<0||idx>=gd.students.length){console.error('Invalid student index');return} const sn=gd.students[idx].name||'الطالب'; if(!confirm(`متأكد من حذف الطالب "${sn}"؟`))return; gd.students.splice(idx,1); saveData(`group${n}`,gd); loadGroup(n); alert(`تم حذف "${sn}".`)}
         async function updateStudentName(n, idx, nn) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; try{const gd=JSON.parse(gds);if(gd.students&&gd.students[idx]){gd.students[idx].name=nn.trim();await saveData(`group${n}`,gd);const ci=document.querySelector(`#student-row-${n}-${idx} td:last-of-type input[disabled]`);if(ci)ci.value=nn.trim()}}catch(e){console.error("Name Update Error:",e)}}
         async function updateStudentNotes(n, idx, notes) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; try{const gd=JSON.parse(gds);if(gd.students&&gd.students[idx]){gd.students[idx].notes=notes;await saveData(`group${n}`,gd)}}catch(e){console.error("Notes Update Error:",e)}}
-        async function updateMonthlyPayment(n, idx, val) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; try{const gd=JSON.parse(gds);const pv=parseFloat(val);if(gd.students&&gd.students[idx]){gd.students[idx].monthlyPayment=(isNaN(pv)||pv<0)?150:pv;await saveData(`group${n}`,gd);const i=document.querySelector(`#student-row-${n}-${idx} input.monthly-payment-input`);if(i)i.value=gd.students[idx].monthlyPayment}}catch(e){console.error("Payment Value Update Error:",e)}}
+        async function updateMonthlyPayment(n, idx, val) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; try{const gd=JSON.parse(gds);const pv=parseFloat(val);if(gd.students&&gd.students[idx]){gd.students[idx].monthlyPayment=(isNaN(pv)||pv<0)?150:pv;await saveData(`group${n}`,gd);const i=document.querySelector(`#student-row-${n}-${idx} input.monthly-payment-input`);if(i)i.value=gd.students[idx].monthlyPayment;updateArrearsCell(n, idx, gd.students[idx])}}catch(e){console.error("Payment Value Update Error:",e)}}
+        
+        // دالة تحديث خلية المتأخرات بشكل لحظي
+        function updateArrearsCell(groupNumber, studentIdx, student) {
+            const mp = student.monthlyPayment || 150;
+            const ps = student.payments || [];
+            const totalPaid = ps.reduce((sum, p) => sum + (Number(p) || 0), 0);
+            let sc = 0;
+            (student.attendance || []).forEach(att => { if (att && att[0]) sc++; });
+            const cp = Math.floor(sc / 8);
+            const expected = cp * mp;
+            const arrears = Math.max(0, expected - totalPaid);
+            
+            const row = document.querySelector(`#student-row-${groupNumber}-${studentIdx}`);
+            if (row) {
+                const arrearsCell = row.querySelector('td:last-child');
+                if (arrearsCell) {
+                    const hasArrears = arrears > 0;
+                    const bgColor = hasArrears ? 'rgba(220, 53, 69, 0.1)' : 'rgba(40, 167, 69, 0.1)';
+                    const textColor = hasArrears ? '#dc3545' : '#28a745';
+                    const content = hasArrears ? arrears + ' ج' : '<i class="fas fa-check-circle"></i>';
+                    
+                    arrearsCell.innerHTML = `
+                        <div style="display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1rem; padding: 6px 10px; border-radius: 8px; background: ${bgColor}; color: ${textColor};">
+                            ${content}
+                        </div>
+                    `;
+                }
+            }
+        }
+        
         async function updateAttendance(n, sIdx, dIdx, cbIdx, isChecked) {
             const gds = localStorage.getItem(`group${n}`);
             if (!gds) return;
@@ -1837,6 +1867,9 @@
                     counterElement.title = `الدورة ${lessonCount.period}`;
                     counterElement.classList.toggle('warning', lessonCount.current === 8);
                 }
+                
+                // تحديث خلية المتأخرات بشكل لحظي
+                updateArrearsCell(n, sIdx, gd.students[sIdx]);
             } catch (e) {
                 console.error("Att Update Error:", e);
                 alert("حدث خطأ أثناء تحديث الحضور.");
@@ -1864,7 +1897,7 @@
                 console.error("Date Update Error:", e);
             }
         }
-        async function updatePayment(n, sIdx, mIdx, val) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; try{const gd=JSON.parse(gds);const pv=parseFloat(val);if(gd.students&&gd.students[sIdx]){if(!gd.students[sIdx].payments)gd.students[sIdx].payments=[]; const el=Math.ceil(gd.dates.length/8); while(gd.students[sIdx].payments.length<el)gd.students[sIdx].payments.push(0); if(mIdx>=0&&mIdx<gd.students[sIdx].payments.length){gd.students[sIdx].payments[mIdx]=(isNaN(pv)||pv<0)?0:pv;await saveData(`group${n}`,gd);const i=document.querySelector(`#student-row-${n}-${sIdx} input[onchange*="updatePayment(${n}, ${sIdx}, ${mIdx}"]`);if(i)i.value=gd.students[sIdx].payments[mIdx]}}}catch(e){console.error("Payment Update Error:",e)}}
+        async function updatePayment(n, sIdx, mIdx, val) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; try{const gd=JSON.parse(gds);const pv=parseFloat(val);if(gd.students&&gd.students[sIdx]){if(!gd.students[sIdx].payments)gd.students[sIdx].payments=[]; const el=Math.ceil(gd.dates.length/8); while(gd.students[sIdx].payments.length<el)gd.students[sIdx].payments.push(0); if(mIdx>=0&&mIdx<gd.students[sIdx].payments.length){gd.students[sIdx].payments[mIdx]=(isNaN(pv)||pv<0)?0:pv;await saveData(`group${n}`,gd);const i=document.querySelector(`#student-row-${n}-${sIdx} input[onchange*="updatePayment(${n}, ${sIdx}, ${mIdx}"]`);if(i)i.value=gd.students[sIdx].payments[mIdx];updateArrearsCell(n, sIdx, gd.students[sIdx])}}}catch(e){console.error("Payment Update Error:",e)}}
         function addNewMonth(n) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; try{const gd=JSON.parse(gds); gd.dates=[...(gd.dates||[]),...Array(8).fill('')]; const ndc=gd.dates.length; const nmc=Math.ceil(ndc/8); if(!gd.students)gd.students=[]; gd.students.forEach(s=>{s.attendance=[...(s.attendance||[]),...Array(8).fill([false,false])]; if(s.attendance.length!==ndc){const ca=Array(ndc).fill([false,false]);for(let i=0;i<Math.min(s.attendance.length,ndc);i++)ca[i]=s.attendance[i];s.attendance=ca} s.payments=s.payments||[];while(s.payments.length<nmc)s.payments.push(0)}); saveData(`group${n}`,gd); loadGroup(n)}catch(e){console.error("Add Month Error:",e);alert("خطأ إضافة شهر.")}}
         function deleteMonth(n, mIdx) { const gds=localStorage.getItem(`group${n}`); if(!gds)return; try{const gd=JSON.parse(gds);const cnd=gd.dates?gd.dates.length:0;const cnm=Math.ceil(cnd/8); if(cnd<=8){alert('لا يمكن حذف الشهر الوحيد.');return} if(mIdx<0||mIdx>=cnm){console.error("Invalid month index:",mIdx);return} if(mIdx!==cnm-1){alert('يمكن حذف الشهر الأخير فقط حالياً.');return} if(!confirm(`متأكد من حذف بيانات الشهر ${mIdx+1} بالكامل؟`))return; const si=mIdx*8;const ntd=Math.min(8,cnd-si); gd.dates.splice(si,ntd); if(gd.students){gd.students.forEach(s=>{if(s.attendance)s.attendance.splice(si,ntd);if(s.payments&&mIdx<s.payments.length)s.payments.splice(mIdx,1)})} saveData(`group${n}`,gd); loadGroup(n)}catch(err){console.error('Delete Month Error:',err);alert('خطأ حذف الشهر.')}}
         function backupLocalStorage() { try{const bd={};let f=0;for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&(k.startsWith('group')||k==='weeklySchedule' || k.startsWith('day') || k.startsWith('time'))){bd[k]=localStorage.getItem(k);f++}} if(f===0){alert("لا توجد بيانات للحفظ.");return false} const bs=JSON.stringify(bd,null,2);const blob=new Blob([bs],{type:'application/json'});const url=URL.createObjectURL(blob);const date=new Date().toISOString().slice(0,10).replace(/-/g,'');const a=document.createElement('a');a.style.display='none';a.href=url;a.download=`TeacherHelper_Backup_${date}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{document.body.removeChild(a);URL.revokeObjectURL(url);alert(`تم الحفظ (${f} عنصر).\nالملف: ${a.download}`)},100);return true}catch(err){console.error('Backup Error:',err);if(err.name==='QuotaExceededError'){alert('خطأ: مساحة التخزين ممتلئة!')}else{alert('خطأ حفظ النسخة.')}return false}}
