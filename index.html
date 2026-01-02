@@ -1829,7 +1829,15 @@
                 }
 
                 const pair = [...gd.students[sIdx].attendance[dIdx]]; // Create a copy
-                const cb2 = document.querySelector(`#student-row-${n}-${sIdx} td:nth-of-type(${3 + dIdx}) input[type="checkbox"]:nth-of-type(2)`);
+                
+                // حساب موقع الخلية بشكل صحيح مع مراعاة خلايا السداد
+                const monthIndex = Math.floor(dIdx / 8);
+                const dayInMonth = dIdx % 8;
+                // الخلايا: اسم الطالب (1) + قيمة السداد (1) + (8 حصص + 1 سداد) * عدد الشهور السابقة + الحصة الحالية
+                const cellIndex = 2 + (monthIndex * 9) + dayInMonth + 1;
+                const row = document.querySelector(`#student-row-${n}-${sIdx}`);
+                const cell = row ? row.querySelector(`td:nth-child(${cellIndex})`) : null;
+                const cb2 = cell ? cell.querySelectorAll('input[type="checkbox"]')[1] : null;
 
                 if (cbIdx === 0) { // تحديث حالة الاحتساب
                     pair[0] = isChecked;
@@ -1839,7 +1847,8 @@
                     // Update UI for checkbox 2 based on checkbox 1's state
                     if (cb2) {
                          cb2.disabled = !isChecked;
-                         cb2.style.opacity = isChecked ? '1' : '0.5';
+                         cb2.style.opacity = isChecked ? '1' : '0.4';
+                         cb2.style.cursor = isChecked ? 'pointer' : 'not-allowed';
                          if (!isChecked) {
                              cb2.checked = false;
                          }
